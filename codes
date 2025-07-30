@@ -1,0 +1,270 @@
+// main.jsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// index.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles if needed */
+
+// App.jsx
+import React, { useState, useEffect, createContext } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import Tasks from './pages/Tasks';
+import ApiPage from './pages/ApiPage';
+import { ThemeProvider } from './contexts/ThemeContext';
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <Router>
+        <div className="min-h-screen flex flex-col">
+          <Navbar />
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/tasks" element={<Tasks />} />
+              <Route path="/api" element={<ApiPage />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </Router>
+    </ThemeProvider>
+  );
+}
+
+// contexts/ThemeContext.jsx
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+const ThemeContext = createContext();
+
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.className = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => useContext(ThemeContext);
+
+// hooks/useLocalStorage.js
+import { useState, useEffect } from 'react';
+
+export function useLocalStorage(key, initialValue) {
+  const [storedValue, setStoredValue] = useState(() => {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : initialValue;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(storedValue));
+  }, [key, storedValue]);
+
+  return [storedValue, setStoredValue];
+}
+
+// components/Navbar.jsx
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
+
+export default function Navbar() {
+  const { toggleTheme } = useTheme();
+  return (
+    <nav className="bg-blue-600 text-white px-4 py-3 flex justify-between items-center">
+      <div className="text-xl font-bold">ReactApp</div>
+      <div className="flex gap-4">
+        <Link to="/">Home</Link>
+        <Link to="/tasks">Tasks</Link>
+        <Link to="/api">API</Link>
+        <button onClick={toggleTheme} className="bg-gray-800 px-2 py-1 rounded">Toggle Theme</button>
+      </div>
+    </nav>
+  );
+}
+
+// components/Footer.jsx
+import React from 'react';
+
+export default function Footer() {
+  return (
+    <footer className="bg-gray-100 text-center py-4 text-sm text-gray-700 dark:bg-gray-900 dark:text-gray-300">
+      &copy; {new Date().getFullYear()} ReactApp. All rights reserved.
+    </footer>
+  );
+}
+
+// components/Button.jsx
+import React from 'react';
+
+export default function Button({ variant = 'primary', children, ...props }) {
+  const base = 'px-4 py-2 rounded focus:outline-none';
+  const variants = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700',
+    secondary: 'bg-gray-600 text-white hover:bg-gray-700',
+    danger: 'bg-red-600 text-white hover:bg-red-700',
+  };
+  return (
+    <button className={`${base} ${variants[variant]}`} {...props}>
+      {children}
+    </button>
+  );
+}
+
+// components/Card.jsx
+import React from 'react';
+
+export default function Card({ children }) {
+  return (
+    <div className="bg-white shadow-md p-4 rounded-md mb-4 dark:bg-gray-800 dark:text-white">
+      {children}
+    </div>
+  );
+}
+
+// pages/Home.jsx
+import React from 'react';
+
+export default function Home() {
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Welcome to the React App</h1>
+      <p>This app demonstrates component architecture, hooks, and API integration.</p>
+    </div>
+  );
+}
+
+// pages/Tasks.jsx
+import React, { useState } from 'react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import Card from '../components/Card';
+import Button from '../components/Button';
+
+export default function Tasks() {
+  const [tasks, setTasks] = useLocalStorage('tasks', []);
+  const [input, setInput] = useState('');
+  const [filter, setFilter] = useState('all');
+
+  const addTask = () => {
+    if (input.trim()) {
+      setTasks([...tasks, { id: Date.now(), text: input, completed: false }]);
+      setInput('');
+    }
+  };
+
+  const toggleComplete = id => {
+    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
+
+  const deleteTask = id => {
+    setTasks(tasks.filter(t => t.id !== id));
+  };
+
+  const filtered = tasks.filter(task =>
+    filter === 'all' ? true : filter === 'completed' ? task.completed : !task.completed
+  );
+
+  return (
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-4">Task Manager</h2>
+      <div className="flex gap-2 mb-4">
+        <input className="border px-2 py-1" value={input} onChange={e => setInput(e.target.value)} />
+        <Button onClick={addTask}>Add</Button>
+      </div>
+      <div className="mb-4">
+        <Button variant="secondary" onClick={() => setFilter('all')}>All</Button>
+        <Button variant="secondary" onClick={() => setFilter('active')}>Active</Button>
+        <Button variant="secondary" onClick={() => setFilter('completed')}>Completed</Button>
+      </div>
+      {filtered.map(task => (
+        <Card key={task.id}>
+          <div className="flex justify-between items-center">
+            <span className={task.completed ? 'line-through' : ''}>{task.text}</span>
+            <div className="flex gap-2">
+              <Button onClick={() => toggleComplete(task.id)}>
+                {task.completed ? 'Undo' : 'Done'}
+              </Button>
+              <Button variant="danger" onClick={() => deleteTask(task.id)}>Delete</Button>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+// pages/ApiPage.jsx
+import React, { useState, useEffect } from 'react';
+import Card from '../components/Card';
+
+export default function ApiPage() {
+  const [data, setData] = useState([]);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('https://jsonplaceholder.typicode.com/posts');
+        const json = await res.json();
+        setData(json);
+        setError(null);
+      } catch (err) {
+        setError('Failed to fetch data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const filtered = data.filter(item =>
+    item.title.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-4">API Data</h2>
+      <input
+        className="border px-2 py-1 mb-4 w-full"
+        placeholder="Search by title..."
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+      />
+      {loading && <p>Loading...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      {filtered.map(post => (
+        <Card key={post.id}>
+          <h3 className="font-semibold mb-2">{post.title}</h3>
+          <p>{post.body}</p>
+        </Card>
+      ))}
+    </div>
+  );
+}
